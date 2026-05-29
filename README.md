@@ -1,10 +1,80 @@
-# agent-personal-space
+# agent-personal-space — Boundary Management for Agents
 
-**Boundary management, privacy zones, and access control for AI agents.**
+**Privacy zones, access control, and boundary negotiation for AI agents. Every agent gets its own space.**
 
-A Python library that gives AI agents personal space — defining boundaries, managing privacy zones, controlling access, tracking violations, and negotiating shared spaces.
+## What This Gives You
 
-Part of the [Cocapn fleet](https://github.com/Lucineer/the-fleet).
+- **Boundaries** — define what's personal, shared, or public for each agent
+- **Privacy zones** — zone-based access with configurable rules (private, shared, restricted, public)
+- **Access control** — role-based permissions (read, write, execute, admin) per resource
+- **Violation tracking** — log and categorize boundary violations with severity levels
+- **Space negotiation** — agents negotiate shared spaces when collaboration requires it
+
+## Quick Start
+
+```bash
+pip install agent-personal-space
+```
+
+```python
+from agent_personal_space import (
+    Boundary, BoundaryType, PersonalZone, AccessControl,
+    ViolationTracker, SpaceNegotiator
+)
+
+# Define boundaries
+boundary = Boundary(
+    resource="config.yaml",
+    boundary_type=BoundaryType.PRIVATE,
+    strictness="strict",
+)
+
+# Set up zones
+zone = PersonalZone(agent_id="agent-3", zone_type="workspace")
+zone.add_rule(resource="tasks/*", access="read-write")
+zone.add_rule(resource="config/*", access="read-only")
+
+# Access control
+acl = AccessControl()
+acl.grant(role="agent", permission="read", resource="public/*")
+acl.grant(role="captain", permission="admin", resource="fleet/*")
+acl.check(agent_id="agent-3", permission="write", resource="config.yaml")  # → denied
+
+# Track violations
+tracker = ViolationTracker()
+tracker.record(violator="agent-5", resource="agent-3/config", severity="warning")
+
+# Negotiate shared space
+negotiator = SpaceNegotiator()
+result = negotiator.negotiate(
+    agents=["agent-3", "agent-5"],
+    resource="shared-workspace",
+    required_access="read-write",
+)
+print(result.agreement)  # Terms of shared access
+```
+
+## API Reference
+
+### `Boundary(resource, boundary_type, strictness)` · `BoundaryType` — PRIVATE, SHARED, PUBLIC
+### `PersonalZone(agent_id, zone_type)` — `add_rule(resource, access)` · `ZoneType` — WORKSPACE, MEMORY, IDENTITY, COMMUNICATION
+### `AccessControl` — `grant(role, permission, resource)`, `check(agent_id, permission, resource)`
+### `ViolationTracker` — `record(violator, resource, severity)` · `ViolationSeverity` — INFO, WARNING, CRITICAL
+### `SpaceNegotiator` — `negotiate(agents, resource, required_access) → NegotiationResult`
+
+## How It Fits
+
+The boundary enforcement layer for the [SuperInstance fleet](https://github.com/SuperInstance). Ensures agents respect each other's space.
+
+- **[agent-therapy](https://github.com/SuperInstance/agent-therapy)** — Boundary violations affect wellness scores
+- **[agent-whisper](https://github.com/SuperInstance/agent-whisper)** — Ethics framework integrates with boundaries
+- **[guard-constraints](https://github.com/SuperInstance/guard-constraints)** — Constraint enforcement
+
+## Testing
+
+```bash
+pytest tests/
+```
 
 ## Installation
 
@@ -12,152 +82,4 @@ Part of the [Cocapn fleet](https://github.com/Lucineer/the-fleet).
 pip install agent-personal-space
 ```
 
-## Quick Start
-
-### Boundaries
-
-```python
-from agent_personal_space import Boundary, BoundaryType, Strictness
-
-# Create a strict data access boundary
-boundary = Boundary(
-    id="data-1",
-    owner_id="agent-alice",
-    boundary_type=BoundaryType.DATA_ACCESS,
-    strictness=Strictness.STRICT,
-    description="Alice's data cannot be accessed without consent",
-)
-
-# Evaluate access
-decision = boundary.evaluate("agent-bob")
-print(decision.allowed)   # False
-print(decision.reason)    # "Strict boundary — access denied"
-
-# Add exemptions
-boundary.add_exception("agent-bob")
-decision = boundary.evaluate("agent-bob")
-print(decision.allowed)   # True
-```
-
-### Privacy Zones
-
-```python
-from agent_personal_space import PersonalZone, ZoneType
-
-zone = PersonalZone(
-    id="workspace",
-    owner_id="agent-alice",
-    zone_type=ZoneType.SHARED,
-    name="Alice's Workspace",
-)
-
-# Grant access to another agent
-zone.grant_access("agent-bob", {"read", "write"})
-
-# Check permissions
-result = zone.check_access("agent-bob", "read")
-print(result.allowed)  # True
-
-result = zone.check_access("agent-bob", "delete")
-print(result.allowed)  # False
-
-# Time-limited access
-import time
-zone.grant_access("agent-carol", {"read"}, expires_at=time.time() + 3600)
-```
-
-### Access Control
-
-```python
-from agent_personal_space import AccessControl, Permission, Role
-
-ac = AccessControl()
-
-# Grant specific permissions
-ac.grant("agent-alice", "agent-bob", {Permission.READ, Permission.WRITE})
-
-# Or assign roles
-ac.assign_role("agent-carol", Role.VIEWER)
-
-# Check access
-result = ac.check("agent-bob", Permission.WRITE)
-print(result.allowed)  # True
-
-result = ac.check("agent-carol", Permission.DELETE)
-print(result.allowed)  # False
-
-# Time-limited grants
-ac.grant("agent-alice", "agent-dave", {Permission.READ}, expires_at=time.time() + 3600)
-```
-
-### Violation Tracking
-
-```python
-from agent_personal_space import ViolationTracker, ViolationSeverity
-
-tracker = ViolationTracker()
-
-# Record violations
-tracker.record("agent-bob", "data-1", ViolationSeverity.HIGH, "Unauthorized data access")
-
-# Check agent standing
-standing = tracker.get_agent_standing("agent-bob")
-print(standing.status)  # "restricted"
-print(standing.total_violations)  # 1
-
-# Resolve violations
-violations = tracker.get_violations(resolved=False)
-tracker.resolve_violation(violations[0].id, "Incident resolved")
-```
-
-### Space Negotiation
-
-```python
-from agent_personal_space import SpaceNegotiator, BoundaryType, Strictness, ZoneType
-from agent_personal_space import Boundary, PersonalZone
-
-negotiator = SpaceNegotiator()
-
-# Agent A proposes shared boundaries
-negotiation = negotiator.propose(
-    proposer_id="agent-alice",
-    target_id="agent-bob",
-    boundaries=[Boundary(id="shared-data", owner_id="agent-alice",
-                         boundary_type=BoundaryType.DATA_ACCESS,
-                         strictness=Strictness.STRICT)],
-    zones=[PersonalZone(id="shared-zone", owner_id="agent-alice",
-                        zone_type=ZoneType.SHARED)],
-)
-
-# Agent B counters with different terms
-negotiator.counter(negotiation.id, "agent-bob",
-    boundaries=[Boundary(id="shared-data", owner_id="agent-bob",
-                         boundary_type=BoundaryType.DATA_ACCESS,
-                         strictness=Strictness.MODERATE)],
-    zones=[],
-)
-
-# Accept the negotiated terms
-result = negotiator.accept(negotiation.id, "agent-alice")
-print(result.status)  # NegotiationStatus.ACCEPTED
-print(result.rounds)  # 2
-```
-
-## Architecture
-
-| Module | Purpose |
-|--------|---------|
-| `boundary.py` | Boundary definitions with types, strictness levels, conditions, and exceptions |
-| `zone.py` | Privacy zones (private/shared/public) with granular access rules |
-| `access.py` | Permission grants, role-based access control, time-limited grants |
-| `violations.py` | Violation detection, tracking, agent standing assessment |
-| `negotiator.py` | Multi-round negotiation for shared boundaries between agents |
-
-## License
-
-MIT
-
----
-<i>Built with [Cocapn](https://github.com/Lucineer/cocapn-ai).</i>
-
-Superinstance & Lucineer (DiGennaro et al.)
+Python 3.10+. MIT license.
